@@ -106,6 +106,9 @@ class Player(QObject):
     def is_stopped(self) -> bool:
         return self.state == PlayState.STOPPED
 
+    def is_playing(self) -> bool:
+        return self.state == PlayState.PLAYING
+
     def output_callback(
         self,
         out_data: np.ndarray,
@@ -121,8 +124,8 @@ class Player(QObject):
         available = self.buffer.offset - self.play_offset
         to_copy = min(available, samples)
         self.play_offset += to_copy
-        self.playback_time_changed.emit(
-            (self.play_offset - self.buffer.offset) / SAMPLING_RATE)
+        time_s = (self.play_offset - self.buffer.offset) / SAMPLING_RATE
+        self.playback_time_changed.emit(time_s)
 
         if available < samples and self.state == PlayState.PLAYING:
             log.info("Reached end of playback")

@@ -51,9 +51,9 @@ class PlaybackControlWidget(QWidget):
         self.setLayout(layout)
 
         self.root: Any = self.widget.rootObject()
-        self.root.stopClicked.connect(self.on_stopped)
-        self.root.recordClicked.connect(self.on_record)
-        self.root.playClicked.connect(self.on_played)
+        self.root.stopClicked.connect(self.on_stop_clicked)
+        self.root.recordClicked.connect(self.on_record_clicked)
+        self.root.playClicked.connect(self.on_play_clicked)
         self.root.positionChanged.connect(self.on_playback_position_changed)
         self.root.setRecordingStartTime(-0.1)
 
@@ -76,16 +76,16 @@ class PlaybackControlWidget(QWidget):
             for error in self.widget.errors():
                 logger.error("QML error: " + error.toString())
 
-    def on_stopped(self) -> None:
+    def on_stop_clicked(self) -> None:
         if self.player.is_stopped():
             self.recording_toggled.emit()
         else:
             self.player.stop()
 
-    def on_record(self) -> None:
+    def on_record_clicked(self) -> None:
         self.recording_toggled.emit()
 
-    def on_played(self) -> None:
+    def on_play_clicked(self) -> None:
         self.player.play()
 
     def on_playback_stopped(self) -> None:
@@ -100,4 +100,8 @@ class PlaybackControlWidget(QWidget):
         self.root.setRecordingStartTime(-max(length, 0.1))
 
     def on_playback_time_changed(self, time: float) -> None:
-        self.root.setPlaybackPosition(time)
+        # when player.stop(), the playback_stopped signal is getting ordered
+        # before some previously-emitted playback_time_changed signals;
+        # ignore those delayed signals x.x
+        if self.player.is_playing():
+            self.root.setPlaybackPosition(time)

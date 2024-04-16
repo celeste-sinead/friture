@@ -12,10 +12,14 @@ RowLayout {
     signal playClicked()
     signal positionChanged(real value)
 
+    property string lastAction: "record"
+
     function showRecording() {
         record.enabled = false;
         record.down = true;
         stop.enabled = true;
+        stop.focus = true;
+        controlRow.lastAction = "record";
         play.enabled = false;
         play.down = undefined;
         position.enabled = true;
@@ -28,12 +32,19 @@ RowLayout {
         play.enabled = true;
         play.down = undefined;
         position.enabled = true;
+        if (controlRow.lastAction == "play") {
+            play.focus = true;
+        } else {
+            record.focus = true;
+        }
     }
 
     function showPlaying() {
         record.enabled = false;
         record.down = undefined;
         stop.enabled = true;
+        stop.focus = true;
+        controlRow.lastAction = "play";
         play.enabled = false;
         play.down = true;
         position.enabled = false;
@@ -63,6 +74,7 @@ RowLayout {
     Button {
         id: stop
         text: "Stop"
+        focus: true
         onClicked: {
             controlRow.showStopped();
             controlRow.stopClicked();
