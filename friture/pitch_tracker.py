@@ -24,6 +24,7 @@ import numpy as np
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import pyqtSignal, pyqtProperty # type: ignore
 from PyQt5.QtCore import QObject, QSettings, Qt
+from PyQt5.QtGui import QPalette
 from PyQt5.QtQuick import QQuickWindow
 from PyQt5.QtQuickWidgets import QQuickWidget
 from PyQt5.QtQml import QQmlComponent, QQmlEngine
@@ -78,7 +79,7 @@ class PitchTrackerWidget(QtWidgets.QWidget):
         self.setObjectName("PitchTracker_Widget")
 
         store = GetStore()
-        self._pitch_tracker_data = Scope_Data(store)
+        self._pitch_tracker_data = PitchViewModel(store)
         store._dock_states.append(self._pitch_tracker_data)
         state_id = len(store._dock_states) - 1
 
@@ -106,7 +107,8 @@ class PitchTrackerWidget(QtWidgets.QWidget):
         self.quickWidget.setSizePolicy(
             QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         self.quickWidget.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.quickWidget.setSource(qml_url("Scope.qml"))
+        self.quickWidget.setClearColor(self.palette().color(QPalette.Window))
+        self.quickWidget.setSource(qml_url("PitchView.qml"))
 
         raise_if_error(self.quickWidget)
 
@@ -115,24 +117,6 @@ class PitchTrackerWidget(QtWidgets.QWidget):
         root.pointSelected.connect(self.on_point_selected)
 
         self.gridLayout.addWidget(self.quickWidget, 0, 0, 1, 1)
-
-        self.pitch_view_model = PitchViewModel(self)
-        pitch_window = QQuickWindow()
-        pitch_component = QQmlComponent(engine, qml_url("PitchView.qml"), self)
-        raise_if_error(pitch_component)
-        pitch_object: Any = pitch_component.createWithInitialProperties(
-            {
-                "parent": pitch_window.contentItem(),
-                "pitch_view_model": self.pitch_view_model
-            },
-            engine.rootContext()
-        )
-        pitch_object.setParent(pitch_window)
-        pitch_widget = QtWidgets.QWidget.createWindowContainer(pitch_window, self)
-        pitch_widget.setSizePolicy(
-            QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
-        pitch_widget.setFixedWidth(int(pitch_object.width()))
-        self.gridLayout.addWidget(pitch_widget, 0, 1)
 
         self.min_freq = DEFAULT_MIN_FREQ
         self.max_freq = DEFAULT_MAX_FREQ
@@ -163,7 +147,7 @@ class PitchTrackerWidget(QtWidgets.QWidget):
     def handle_new_data(self, floatdata: np.ndarray) -> None:
         if self.tracker.update():
             self.update_curve()
-            self.pitch_view_model.pitch = self.tracker.get_latest_estimate() # type: ignore
+            self._pitch_tracker_data.pitch = self.tracker.get_latest_estimate() # type: ignore
 
     def update_curve(self) -> None:
         pitches = self.tracker.get_estimates(self.duration)
@@ -218,7 +202,7 @@ class PitchTrackerWidget(QtWidgets.QWidget):
         self.settings_dialog.restore_state(settings)
 
 
-class PitchViewModel(QObject):
+class PitchViewModel(Scope_Data):
     pitch_changed = pyqtSignal(float)
 
     def __init__(self, parent: QObject):
